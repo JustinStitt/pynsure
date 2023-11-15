@@ -5,13 +5,13 @@ from typing import Annotated
 # TODO: support multiple predicates and messages
 # probably go with a dict approach
 # but also still support non-dict approach
-type Unsigned = Annotated[
+Unsigned = Annotated[
     int,
     lambda V: V >= 0,
     "`{}` must be greater than or equal to 0 but it is equal to {{}}",
 ]
 
-type Negative = Annotated[
+Negative = Annotated[
     int,
     lambda V: V < 0,
     "{} must be negative(i.e: < 0) but it is equal to {{}}",
