@@ -23,12 +23,13 @@ class ValidationError(TypeError):
 
 
 # TODO: consider kwargs and optionals and defaults and pretty much all edge cases
-def validate(cache=False):
+def validate(cache=False, strict=True):
     """
     Validate Annotated types supplied with predicates.
 
     Args:
-        cache (bool): Cache repeat calls, arguments must be hashable.
+        cache (bool) : Cache repeat calls, arguments must be hashable.
+        strict (bool): Check exact origin types as well as predicates
 
     Returns:
         A wrapper function that performs the validation before calling the actual function.
@@ -40,6 +41,7 @@ def validate(cache=False):
             full_arg_spec = inspect.getfullargspec(func)
             # print(full_arg_spec)
             annotations = full_arg_spec.annotations
+            # print(f"{annotations=}")
 
             for _var, _type in annotations.items():
                 if not hasattr(_type, "__metadata__"):
@@ -49,6 +51,11 @@ def validate(cache=False):
                     continue
 
                 arg = args[full_arg_spec.args.index(_var)]
+
+                if strict and not isinstance(arg, _type.__origin__):
+                    raise TypeError(
+                        f"Expected {_var} to have origin type of {_type.__origin__} yet it's type is {type(arg)}"
+                    )
 
                 msg = ""
                 for x in _type.__metadata__:
@@ -66,7 +73,7 @@ def validate(cache=False):
             return_annotation = annotations.get("return", None)
             if not return_annotation or not getattr(
                 return_annotation, "__metadata__", None
-                ):
+            ):
                 return result
 
             msg = ""

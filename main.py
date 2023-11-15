@@ -6,4 +6,4 @@ def add_two(a: pynsure.Unsigned, b: pynsure.Negative) -> pynsure.Unsigned:
     return a + b
 
 
-add_two(23, -4)
+add_two(23, -3)
