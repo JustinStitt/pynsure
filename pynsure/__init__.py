@@ -1,96 +1,98 @@
 import inspect
 import functools
 from typing import Annotated
+from icecream import ic
 
-# TODO: support multiple predicates and messages
-# probably go with a dict approach
-# but also still support non-dict approach
+__all__ = (
+    "Unsigned",
+    "Negative",
+    "UnsignedEven",
+    "validate",
+)
+
 Unsigned = Annotated[
     int,
-    lambda V: V >= 0,
-    "`{}` must be greater than or equal to 0 but it is equal to {{}}",
+    (lambda V: V >= 0, "{} must be greater than or equal to 0 but it is {{}}"),
 ]
 
 Negative = Annotated[
     int,
-    lambda V: V < 0,
-    "{} must be negative(i.e: < 0) but it is equal to {{}}",
+    (lambda V: V < 0, "{} must be negative(i.e: < 0) but it is equal to {{}}"),
+]
+
+UnsignedEven = Annotated[
+    int,
+    (lambda V: V % 2 == 0, "{} must be even but it is {{}}"),
+    (lambda V: V >= 0, "{} must be positive but it is {{}}"),
 ]
 
 
-class ValidationError(TypeError):
+class ValidationError(Exception):
     ...
 
 
-# TODO: consider kwargs and optionals and defaults and pretty much all edge cases
-def validate(cache=False, strict=True):
-    """
-    Validate Annotated types supplied with predicates.
-
-    Args:
-        cache (bool) : Cache repeat calls, arguments must be hashable.
-        strict (bool): Check exact origin types as well as predicates
-
-    Returns:
-        A wrapper function that performs the validation before calling the actual function.
-    """
-
+def validate(strict=True, cache=False):
     def wrapper(func):
+        sig = inspect.signature(func)
+        parameters = sig.parameters
+
         @functools.wraps(func)
         def inner(*args, **kwargs):
-            full_arg_spec = inspect.getfullargspec(func)
-            # print(full_arg_spec)
-            annotations = full_arg_spec.annotations
-            # print(f"{annotations=}")
-
-            for _var, _type in annotations.items():
-                if not hasattr(_type, "__metadata__"):
+            for idx, (key, param) in enumerate(parameters.items()):
+                arg_val = (
+                    args[idx]
+                    if idx < len(args)
+                    else kwargs[key]
+                    if param.default == param.empty
+                    else param.default
+                )
+                anno = param.annotation
+                if isinstance(anno, type):
                     continue
 
-                if _var == "return":  # check return type after we have result
+                if not hasattr(anno, "_name") or anno._name != "Annotated":
                     continue
 
-                arg = args[full_arg_spec.args.index(_var)]
-
-                if strict and not isinstance(arg, _type.__origin__):
-                    raise TypeError(
-                        f"Expected {_var} to have origin type of {_type.__origin__} yet it's type is {type(arg)}"
-                    )
-
-                msg = ""
-                for x in _type.__metadata__:
-                    if isinstance(x, str):
-                        msg = x
-                        break
-
-                msg = msg.replace("{{}}", f"{arg}").replace("{}", _var)
-
-                for entry in _type.__metadata__:
-                    if callable(entry) and not entry(arg):
-                        raise ValidationError(msg)
+                _validate_annotation(anno, strict, arg_val, key, param)
 
             result = func(*args, **kwargs)
-            return_annotation = annotations.get("return", None)
-            if not return_annotation or not getattr(
-                return_annotation, "__metadata__", None
-            ):
-                return result
-
-            msg = ""
-            for x in return_annotation.__metadata__:
-                if isinstance(x, str):
-                    msg = x.replace("{{}}", f"{result}").replace("{}", "return value")
-
-            for entry in return_annotation.__metadata__:
-                # TODO: better info about which return statement returned bad result
-                # use inspect module
-                if callable(entry) and not entry(result):
-                    raise ValidationError(msg)
-
+            _validate_annotation(
+                sig.return_annotation, strict, result, "return value", "return"
+            )
             return result
 
         if cache:
             return functools.cache(inner)
+
         return inner
 
     return wrapper
+
+
+def _validate_annotation(anno, strict, arg_val, key, param):
+    try:
+        for predicate, message in anno.__metadata__:
+            if strict and not isinstance(arg_val, anno.__origin__):
+                raise ValidationError(
+                    f"{key} is of type {type(key)} but it should be of type {anno.__origin__}\n"
+                    f"and follow these predicate(s): {anno}"
+                )
+            if predicate(arg_val) == False:
+                raise ValidationError(
+                    message.replace("{{}}", f"{arg_val}").replace("{}", key)
+                )
+    except (ValueError, TypeError, AttributeError) as err:
+        raise ValidationError(
+            f'{err}\nThe type for "{param}" is configured incorrectly for runtime validation.\n'
+            "Annotated type should look like: Annotated[<base_type>, (<predicate>, <message>), <...>]"
+        )
+
+
+if __name__ == "__main__":
+
+    @validate()
+    def foo(a: UnsignedEven, b: Unsigned, test=None) -> Unsigned:
+        return a + b + test
+
+    result = foo(4, 4, test=False)
+    print(f"{result = }")
