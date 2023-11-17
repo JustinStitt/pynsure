@@ -1,5 +1,8 @@
 # pynsure
 
+> [!TIP]
+> [pin-sure] (like insure 😄)
+
 Predicate-based runtime constraint validator for Python
 
 
@@ -34,7 +37,8 @@ add_two(3, 5) # OK
 add_two(4, 5) # BAD
 ```
 
-Note: `{}` is replaced with the parameter name and `{{}}` is replaced by the
+> [!Note]
+> `{}` is replaced with the parameter name and `{{}}` is replaced by the
 parameter value automatically when a `ValidationError` is raised.
 
 You can even specify multiple predicates for your Annotated types:
@@ -139,3 +143,10 @@ format_name(first_name=NonEmptyStr(string="Bob"), last_name=NonEmptyStr(string="
 ```
 
 This is fine but a bit clunky having to fiddle around with BaseModels.
+
+## Conclusion
+
+Ultimately, use whatever you want, this isn't some new standard and you'll
+probably get better mileage from `pydantic` (as far as runtime validation is
+concerned). But, if you want to set some quick and easy constraints on your
+methods, give `pynsure` a shot.
