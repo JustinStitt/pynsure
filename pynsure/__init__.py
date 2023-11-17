@@ -1,7 +1,6 @@
 import inspect
 import functools
 from typing import Annotated
-from icecream import ic
 
 __all__ = (
     "Unsigned",
@@ -39,26 +38,23 @@ def validate(strict=True, cache=False):
         @functools.wraps(func)
         def inner(*args, **kwargs):
             for idx, (key, param) in enumerate(parameters.items()):
-                arg_val = (
-                    args[idx]
-                    if idx < len(args)
-                    else kwargs[key]
-                    if param.default == param.empty
-                    else param.default
-                )
+                if idx < len(args):
+                    arg_val = args[idx]
+                elif kwargs.get(key, None):
+                    arg_val = kwargs[key]
+                elif param.default != param.empty:
+                    arg_val = param.default
+                else:
+                    arg_val = None
                 anno = param.annotation
-                if isinstance(anno, type):
-                    continue
-
-                if not hasattr(anno, "_name") or anno._name != "Annotated":
-                    continue
 
                 _validate_annotation(anno, strict, arg_val, key, param)
 
             result = func(*args, **kwargs)
-            _validate_annotation(
-                sig.return_annotation, strict, result, "return value", "return"
-            )
+            if sig.return_annotation != sig.empty:
+                _validate_annotation(
+                    sig.return_annotation, strict, result, "return value", "return"
+                )
             return result
 
         if cache:
@@ -70,6 +66,12 @@ def validate(strict=True, cache=False):
 
 
 def _validate_annotation(anno, strict, arg_val, key, param):
+    if isinstance(anno, type):
+        return
+
+    if not hasattr(anno, "__metadata__"):
+        return
+
     try:
         for predicate, message in anno.__metadata__:
             if strict and not isinstance(arg_val, anno.__origin__):
@@ -91,8 +93,7 @@ def _validate_annotation(anno, strict, arg_val, key, param):
 if __name__ == "__main__":
 
     @validate()
-    def foo(a: UnsignedEven, b: Unsigned, test=None) -> Unsigned:
-        return a + b + test
+    def add_two(a: int = 5, b: Unsigned = -2) -> Unsigned:
+        return a + b
 
-    result = foo(4, 4, test=False)
-    print(f"{result = }")
+    add_two()
