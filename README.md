@@ -1,5 +1,9 @@
 # pynsure
 
+```bash
+$ pip install pynsure
+```
+
 > [!TIP]
 > *[pin-sure]* (like insure 😄)
 
