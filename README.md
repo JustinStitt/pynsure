@@ -1,7 +1,7 @@
 # pynsure
 
 > [!TIP]
-> [pin-sure] (like insure 😄)
+> *[pin-sure]* (like insure 😄)
 
 Predicate-based runtime constraint validator for Python
 
