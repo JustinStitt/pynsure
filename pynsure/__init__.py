@@ -7,6 +7,7 @@ __all__ = (
     "Negative",
     "UnsignedEven",
     "validate",
+    "ValidationError",
 )
 
 Unsigned = Annotated[
